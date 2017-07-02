@@ -1,0 +1,76 @@
+#!/bin/bash
+
+set -e
+set -u
+
+dom=$1
+script=$2
+
+do_key () {
+	local key=$1
+	sudo virsh send-key $dom --keycode $key
+}
+
+mkdir -p screenshots
+
+cat $script | while read action param1 param2; do
+	case "$action" in
+		wait-for)
+			echo -n "\rwait-for $param1 "
+			while true; do
+				sudo virsh screenshot --file "current.pbm" $dom >/dev/null
+				h=$(sha256sum current.pbm | awk '{print $1}')
+				if [ "$h" = "$param1" ]; then
+					if [ ! -e screenshots/$h.pbm ]; then cp current.pbm screenshots/$h.pbm; fi
+					echo -e "\rwait-for $param1 -- reached, continuing"
+					break
+				fi
+				echo -en "\rwait-for $param1 [$h]"
+
+				sleep 1
+			done
+			;;
+		send-key)
+			echo "send-key key $param1 $param2"
+			sudo virsh send-key $dom --keycode $param1 $param2
+			;;
+		comment)
+			echo "comment $param1 $param2"
+			;;
+		*)
+			echo "don't know action $action $param1 $param2" >&2
+			exit 1
+	esac
+done
+
+echo "you've reached the end of the script. what shall we do now?"
+while true; do
+	echo ">"
+
+	while true; do
+		sudo virsh screenshot --file "current.pbm" $dom >/dev/null
+		h=$(sha256sum current.pbm | awk '{print $1}')
+
+		echo -en '\r'
+		echo -n 'Wait-for this state | send-Key ';
+		echo -n "[$h] "
+		read -t 1 -n 1 k || true
+		case "$k" in
+			w)
+				echo "wait-for $h" >> $script
+				break
+				;;
+			k)
+				echo -n "key: "
+				read k
+				if [ "$k" = "" ]; then echo "abort"; break; fi
+				echo "send-key $k" >> $script
+				sudo virsh send-key $dom --keycode "$k"
+				break
+				;;
+			"")
+				continue
+				;;
+		esac
+	done
+done

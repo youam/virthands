@@ -1,0 +1,4 @@
+Ever needed to script some installation of a VM, so that you could reinstall it
+into clean state? virthands lets you do that by taking a look at the current
+display of an VM (currently, libvirt domains only) and send virtual keypresses
+based on a script.
