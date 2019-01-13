@@ -5,6 +5,10 @@ set -u
 
 dom=$1
 script=$2
+skipto=""
+if [ $# = 3 ]; then
+	skipto=$3
+fi
 
 do_key () {
 	local key=$1
@@ -14,6 +18,19 @@ do_key () {
 mkdir -p screenshots
 
 cat $script | while read action param1 param2; do
+	if [ -n "$skipto" ]; then
+		if [ $action != "wait-for" ]; then
+			echo "skipping {$action} $param1 $param2"
+			continue
+		fi
+		if [ $param1 != "$skipto" ]; then
+			echo "skiping $action {$param1} $param2"
+			continue
+		fi
+		# found our skipto
+		skipto=""
+	fi
+
 	case "$action" in
 		wait-for)
 			echo -n "\rwait-for $param1 "
