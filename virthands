@@ -37,7 +37,8 @@ cat $script | while read action param1 param2; do
 			while true; do
 				sudo virsh screenshot --file "current.pbm" $dom >/dev/null
 				h=$(sha256sum current.pbm | awk '{print $1}')
-				if [ "$h" = "$param1" ]; then
+					if [ ! -e screenshots/$h.pbm ]; then cp current.pbm screenshots/$h.pbm; fi
+				if [ "$h" = "$param1" ] || grep -q "$h" <<< "$param2" ; then
 					if [ ! -e screenshots/$h.pbm ]; then cp current.pbm screenshots/$h.pbm; fi
 					echo -e "\rwait-for $param1 -- reached, continuing"
 					break
@@ -71,7 +72,7 @@ while true; do
 		h=$(sha256sum current.pbm | awk '{print $1}')
 
 		echo -en '\r'
-		echo -n 'Wait-for this state | send-Key ';
+		echo -n '[W]ait-for this state (or [R]ecord alias) | send-[K]ey ';
 		echo -n "[$h] "
 		read -t 1 -n 1 k || true
 		case "$k" in
@@ -79,6 +80,21 @@ while true; do
 				echo "wait-for $h" >> $script
 				break
 				;;
+			r)
+				echo -n "recording aliases"
+				x=$(mktemp)
+				echo "$h" > $x
+				while ! read -n 1 -t 1; do
+					sudo virsh screenshot --file "current.pbm" $dom >/dev/null
+					h=$(sha256sum current.pbm | awk '{print $1}')
+					echo "$h" >> $x
+					echo "---"
+					sort $x | uniq -c | sort -rn
+				done
+				echo "wait-for $(sort $x | uniq -c | sort -hr | awk '{print $2}' | tr '\n' ' ')" >> $script
+				rm "$x"
+				;;
+
 			k)
 				echo -n "key: "
 				read k
