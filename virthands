@@ -51,8 +51,10 @@ cat $script | while read action param1 param2; do
 			echo "send-key key $param1 $param2"
 			sudo virsh send-key $dom --keycode $param1 $param2
 			;;
-		comment)
+		comment|'#')
 			echo "comment $param1 $param2"
+			;;
+		'')
 			;;
 		*)
 			echo "don't know action $action $param1 $param2" >&2
